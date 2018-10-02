@@ -7,19 +7,32 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include "alarme.c"
+#include <signal.h>
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define MAX 3	
+#define FLAG 0x7E
+int received=0;
 
 volatile int STOP=FALSE;
+void atende();
+char set[5];
 
 int main(int argc, char** argv)
 {
     int fd,c, res;
     struct termios oldtio,newtio;
+	
+	set[0]= FLAG;
+	set[1]= 0x03; //A
+	set[2]= 0x03;//C, define a trama que se esta a usar, 0x03 - transmicao emissor -> recetor
+	set[3]= set[1]^set[2]; 
+	set[4]=FLAG;
+	
     char buf[255];
     int i, sum = 0, speed = 0;
 
@@ -87,10 +100,9 @@ int main(int argc, char** argv)
     O ciclo FOR e as instru��es seguintes devem ser alterados de modo a respeitar
     o indicado no gui�o
   */
-  i =0;
+  /*i =0;
     while(STOP == FALSE){
         res = read(fd,buf+i,1);
-      //  buf[res]=0;
 
         if (buf[i]=='\0'){
           STOP=TRUE;
@@ -105,9 +117,51 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-
-
+*/
+	 i =llopen(fd);
+	printf("llopen:: %d\n",i);
 
     close(fd);
     return 0;
 }
+
+int llopen(int fd){
+	int res;
+	int i=0;
+	char buf[5];
+	(void) signal(SIGALRM,atende);
+	while(conta<MAX && !received){
+		desativa_alarme();
+		res=write(fd,buf,sizeof(buf));
+		alarm(3);
+		while(!flag && !received){
+			res=read(fd,buf+i,1);
+			while(!flag && !received){
+
+			while(i<5) {	
+			switch(buf[i]){
+				case 0x7E:
+				if (i==0 || i==4){
+					i++;			
+				}
+				break;
+				default:
+				if (i!=0 && i!=4)
+					i++;
+				
+			}
+			if (i==5){
+			if ( buf[2]==set[2] && buf[3]==buf[1]^buf[2]) {
+				received=1;	
+				desativa_alarme();
+			}
+		else
+		return -1;
+
+}
+			
+		
+
+}
+}
+
