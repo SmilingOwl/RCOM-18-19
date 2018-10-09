@@ -14,22 +14,9 @@ void atende()                   // atende alarme
 
 void desativa_alarme(){
 	flag=0;
-	conta=0;
 	alarm(0);
 }
-int main()
-{
-
-(void) signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-
-while(conta < 4){
-   if(flag){
-      alarm(3);                 // activa alarme de 3s
-      flag=0;
-   }
-}
-printf("Vou terminar.\n");
-return 0;
-
+void conta_zero(){
+conta=0;
 }
 

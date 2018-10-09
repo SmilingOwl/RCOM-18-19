@@ -17,6 +17,7 @@
 #define MAX 3	
 #define FLAG 0x7E
 int received=0;
+int llopen(int fd);
 
 volatile int STOP=FALSE;
 void atende();
@@ -26,7 +27,7 @@ int main(int argc, char** argv)
 {
     int fd,c, res;
     struct termios oldtio,newtio;
-	
+	(void) signal(SIGALRM,atende);
 	set[0]= FLAG;
 	set[1]= 0x03; //A
 	set[2]= 0x03;//C, define a trama que se esta a usar, 0x03 - transmicao emissor -> recetor
@@ -89,7 +90,7 @@ int main(int argc, char** argv)
 
 
 
-    printf ("Insert a sentence\n");
+/*    printf ("Insert a sentence\n");
     gets(&buf);
 
     res = write(fd,buf,sizeof(buf));
@@ -100,7 +101,8 @@ int main(int argc, char** argv)
     O ciclo FOR e as instru��es seguintes devem ser alterados de modo a respeitar
     o indicado no gui�o
   */
-  /*i =0;
+/*
+  i =0;
     while(STOP == FALSE){
         res = read(fd,buf+i,1);
 
@@ -116,53 +118,54 @@ int main(int argc, char** argv)
       perror("tcsetattr");
       exit(-1);
     }
-
 */
 	 i =llopen(fd);
 	printf("llopen:: %d\n",i);
 
     close(fd);
-    return 0;
+
+  return 0;
 }
 
 int llopen(int fd){
 	int res;
 	int i=0;
 	char buf[5];
-	(void) signal(SIGALRM,atende);
+	
 	while(conta<MAX && !received){
 		desativa_alarme();
-		res=write(fd,buf,sizeof(buf));
+		
+		res=write(fd,set,sizeof(set));
+		
 		alarm(3);
+		conta_zero();
 		while(!flag && !received){
+			
 			res=read(fd,buf+i,1);
-			while(!flag && !received){
-
-			while(i<5) {	
+			
+		if (res!=0)
+			if(i<5 && res!=0) {	
 			switch(buf[i]){
 				case 0x7E:
-				if (i==0 || i==4){
+				if (i==0 || i==4)
 					i++;			
-				}
 				break;
 				default:
 				if (i!=0 && i!=4)
 					i++;
 				
 			}
+}
 			if (i==5){
-			if ( buf[2]==set[2] && buf[3]==buf[1]^buf[2]) {
-				received=1;	
+			if (buf[2]==0x07 && buf[3]==buf[1]^buf[2]) {
+				received=1;
 				desativa_alarme();
-			}
-		else
-		return -1;
-
-			}
-			
-			}
+				
+				}
 			}
 		}
-	}
 }
+}
+
+
 
