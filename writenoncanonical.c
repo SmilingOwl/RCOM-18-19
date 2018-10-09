@@ -167,5 +167,27 @@ int llopen(int fd){
 }
 }
 
+int llwrite(int buf){
+ 
+	char set[255];
+	char or;
+	int i=0;
+while(!flag && !received){
+			
+			res=read(set,buf+i,1);
+		if (res!=0)
+			or=or^set[i];
+			i++;					
+			}
+
+				
+				}
+			}
+		}
+}
+	
+	
+
+}
 
 
