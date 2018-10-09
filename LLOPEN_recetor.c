@@ -70,7 +70,7 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-if(LLOPEN(fd)==-1){
+	if(LLOPEN(fd)==-1){
 	perror("Wrong set received");
 	exit(-1);}
 
@@ -86,7 +86,7 @@ int LLOPEN(int fd){
 
 char SET[5], buf;
 SET[0]  = 0x7E;
-int i=0, found_default = 0, found_flag=0, res;
+int i=0, res;
 int state = 0; //fora
 
 
@@ -124,5 +124,57 @@ UA[2] = 0x07;
 UA[3] = 0x04;
 UA[4] = 0x7E;
    res = write(fd, UA, sizeof(UA));
- 
+ return 0;
 }
+
+int llread(){
+char buf;
+char trama[512];
+trama[0] = 0x7E;
+int i=0, res;
+int state = 0; //fora
+
+
+   while(!STOP)
+   {
+     res = read(fd, &buf,1);
+     
+     if(res!=0)
+     {
+	switch(state)
+	{
+	case 0:
+		if(buf == 0x7E) state++;
+		break;
+	case 1:
+		if(buf != 0x7E) {state++; i++; trama[i] = buf;}
+		break;
+	case 2:
+		if(buf != 0x7E) STOP = TRUE;
+		else if(buf != 0x7E){ i++; trama[i] = buf;}
+		else{ i++; trama[i] = buf; STOP = TRUE;}
+		break;
+	}
+     }
+  }
+
+if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40)
+	llread(fd);
+
+for(int j=4; j < i; j++)
+{
+    if(trama[j] == 0x7D && trama[j+1] == 0x5E)
+    {/*ciclo para apgar 0x5E e colocar 0x7D=0x7E (i--)*/}
+    else if(trama[j] == 0x7D && trama[j+1] == 0x5D)
+    {/*ciclo para apgar 0x5D (i--)*/}
+
+	
+}
+/*if(trama[4]==0x02)
+ //START
+else if(trama[4]==0x01)
+ //F
+else if(trama[4]==0x03)
+//END*/
+}
+
