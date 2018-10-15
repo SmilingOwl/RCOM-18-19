@@ -119,6 +119,7 @@ int state = 0; //fora
      }
   }
 
+
 //analise
 if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
 	LLOPEN(fd);
@@ -156,15 +157,14 @@ int llread(int id_trama, int fd){
 		if(buf != 0x7E) {state++; i++; trama[i] = buf;}
 		break;
 	case 2:
-		if(buf != 0x7E) STOP = TRUE;
-		else if(buf != 0x7E){ i++; trama[i] = buf;}
+		if(buf != 0x7E){ i++; trama[i] = buf;}
 		else{ i++; trama[i] = buf; STOP = TRUE;}
 		break;
 	}
      }
   }
 	int a = 0;
-  while(a <= i-1)
+  while(a <= i)
   {
   	printf("i=%d, trama: 0x%x\n", a, trama[a]);
 	a++;
@@ -230,6 +230,7 @@ while(j < i-1)
 if(trama[2]==0x00 && id_trama == 0){
 	printf("RR1\n");
 	message[2] = RR1;
+	printf("0x%x\n", message[2]);
 	message[3] == message[1]^message[2];
 	write(fd, message, 5);
 	return 0;
