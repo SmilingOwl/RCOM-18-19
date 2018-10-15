@@ -78,6 +78,8 @@ int main(int argc, char** argv)
 	perror("Wrong set received");
 	exit(-1);}
 
+	llread(0,fd);
+
 
 
 
@@ -161,10 +163,11 @@ int llread(int id_trama, int fd){
 	}
      }
   }
-
-  for(int a = 0; a <= i-1; a++)
+	int a = 0;
+  while(a <= i-1)
   {
   	printf("i=%d, trama: 0x%x\n", a, trama[a]);
+	a++;
   }
 
 char message[5];
@@ -193,7 +196,8 @@ if(trama[2]==0x40 && id_trama != 1){
 char buf2[512];
 int n =0;
 char bcc2;
-for(int j=4; j < i-1; j++)
+int j = 4;
+while(j < i-1)
 {
     if(trama[j] == 0x7D && trama[j+1] == 0x5E)
     {/*ciclo para apgar 0x5E e colocar 0x7D=0x7E (i--)*/
@@ -212,12 +216,15 @@ for(int j=4; j < i-1; j++)
 	bcc2=buf2[n];
     else 
 	bcc2=bcc2^buf2[n];
-    n++;	
+    n++;
+    j++;	
 }
 
-  for(int a = 0; a <= n-1; a++)
+  a=0;
+  while(a <= n-1)
     {
   	printf("i=%d, buf2: 0x%x\n", a, buf2[a]);
+	a++;
     }
 
 if(trama[2]==0x00 && id_trama == 0){
