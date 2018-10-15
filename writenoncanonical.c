@@ -16,6 +16,10 @@
 #define TRUE 1
 #define MAX 3
 #define FLAG 0x7E
+#define RR0 0x05
+#define RR1 0x85
+#define REJ0 0x01
+#define REJ1 0x81
 int received=0;
 int llopen(int fd);
 
@@ -25,6 +29,7 @@ char set[5];
 
 int main(int argc, char** argv)
 {
+
     int fd,c, res;
     struct termios oldtio,newtio;
 	(void) signal(SIGALRM,atende);
@@ -86,46 +91,14 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    printf("New termios structure set\n");
-
-
-
-/*    printf ("Insert a sentence\n");
-    gets(&buf);
-
-    res = write(fd,buf,sizeof(buf));
-    printf("%d bytes written\n", res);
-
-
-  /*
-    O ciclo FOR e as instru��es seguintes devem ser alterados de modo a respeitar
-    o indicado no gui�o
-  */
-/*
-  i =0;
-    while(STOP == FALSE){
-        res = read(fd,buf+i,1);
-
-        if (buf[i]=='\0'){
-          STOP=TRUE;
-        }
-      else  i++;
-    }
-      printf(":%s\n", buf);
-
-
-    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
-    }
-*/
 char test[4];
   test[0]=0x01;
   test[1]=0x10;
   test[2]=0x11;
   test[3]=0x7E;
+  printf("llopen\n");
 	 llopen(fd);
-   //llwrite(fd,test,0x40);
+   llwrite(fd,test,0x00,sizeof(test));
 
     close(fd);
 
@@ -147,6 +120,7 @@ int llopen(int fd){
 		while(!flag && !received){
 
 			res=read(fd,buf+i,1);
+      printf("llopen 0x%x\n",buf+i);
 
 		if (res!=0)
 			if(i<5 && res!=0) {
@@ -172,19 +146,23 @@ int llopen(int fd){
 }
 }
 
-int llwrite(int set,int fd,int trama){
+int llwrite(int fd, char* set,int trama,int size){
+	
 
 	char buf1[255];
   char buf2[255];
   char buf3[255];
 	char bcc2;
-  int res;
+char confirmation;
+  int res=1;
 	int i,j;
   i=0;
   j=0;
-  while(res!=0){
+flag=1;
 
-			res=read(set,buf1+i,1);
+ 	for(; i<size;i++){
+		buf1[i]=set[i];
+      printf("buf1:0x%x\n",buf1[i]);
       if (buf1[i]==0x7E){
         buf2[j]=0x7D;
         buf2[j+1]=0x5E;
@@ -202,7 +180,7 @@ int llwrite(int set,int fd,int trama){
         }
         j++;
 			bcc2=bcc2^buf1[i];
-			i++;
+			
 	}
   buf2[j]=bcc2;
   buf3[0]=FLAG;
@@ -210,19 +188,29 @@ int llwrite(int set,int fd,int trama){
   buf3[2]=trama;
   buf3[3]=buf3[1]^buf3[2];
   i=4;
+if (trama ==0x00){
+		confirmation=RR1;
+	
+}
+else 
+	confirmation=RR0;
   while(i<j+4){
-    buf3[i]=buf2[j-4];
+
+    buf3[i]=buf2[i-4];
     i++;
   }
   buf3[i]=FLAG;
   i=0;
-  res=write(fd,buf3,sizeof(buf3));
+  	res=write(fd,buf3,sizeof(buf3));
+	printf("escrita: 0x%x\n",buf3[i]);
   char buf[255];
   alarm(3);
   conta_zero();
+	flag=0;
+	received=0;
   while(!flag && !received){
-
     res=read(fd,buf+i,1);
+	printf("buf: 0x%x\n",buf[i]);
 
     if(res!=0) {
     switch(buf[i]){
@@ -236,7 +224,7 @@ int llwrite(int set,int fd,int trama){
 
 }
     if (i==5){
-    if (buf[2]==0x07 && buf[3]==buf[1]^buf[2]) {
+    if (buf[2] == confirmation && buf[3]==buf[1]^buf[2]) {
       received=1;
       desativa_alarme();
 
@@ -251,3 +239,4 @@ int llwrite(int set,int fd,int trama){
 
 
 }
+
