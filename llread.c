@@ -17,6 +17,8 @@
 #define REJ0 0x01
 #define REJ1 0x81
 
+int id_trama=0;
+
 volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
@@ -74,21 +76,19 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-	if(LLOPEN(fd)==-1){
+	if(llopen(fd)==-1){
 	perror("Wrong set received");
-	exit(-1);}
-
-	llread(0,fd);
-
-
-
+	exit(-1);
+	}
+	
+	save_data(fd);
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
 }
 
-int LLOPEN(int fd){
+int llopen(int fd){
 
 char SET[5], buf;
 SET[0]  = 0x7E;
@@ -122,7 +122,7 @@ int state = 0; //fora
 
 //analise
 if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
-	LLOPEN(fd);
+	llopen(fd);
 //estrutura a enviar UA
 char UA[5];
 UA[0] = 0x7E;
@@ -134,7 +134,7 @@ UA[4] = 0x7E;
  return 0;
 }
 
-int llread(int id_trama, int fd){
+int llread(int fd, char* buffer){
     char buf;
     char trama[512];
     trama[0] = 0x7E;
@@ -176,9 +176,7 @@ message[1] = 0x03;
 message[4] = 0x7E;
 
 if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40){
-	printf("error\n");
-	return -1;
-}
+
 if(trama[2]==0x00 && id_trama != 0){
 	printf("REJ0\n");
 	message[2] = REJ0;
@@ -192,6 +190,15 @@ if(trama[2]==0x40 && id_trama != 1){
 	message[3] == message[1]^message[2];
 	write(fd, message, 5);
 	return -1;
+}
+	printf("error\n");
+	return -1;
+}
+if(trama[2]==0x00 && id_trama != 0){
+	return llread(fd, buffer);
+}
+if(trama[2]==0x40 && id_trama != 1){
+	return llread(fd,buffer);
 }
 char buf2[512];
 int n =0;
@@ -226,6 +233,7 @@ while(j < i-1)
   	printf("i=%d, buf2: 0x%x\n", a, buf2[a]);
 	a++;
     }
+	buffer = buf2;
 
 if(trama[2]==0x00 && id_trama == 0){
 	printf("RR1\n");
@@ -233,15 +241,136 @@ if(trama[2]==0x00 && id_trama == 0){
 	printf("0x%x\n", message[2]);
 	message[3] == message[1]^message[2];
 	write(fd, message, 5);
-	return 0;
+	return n-1;
 }
 if(trama[2]==0x40 && id_trama == 1){
 	printf("RR0\n");
 	message[2] = RR0;
 	message[3] == message[1]^message[2];
 	write(fd, message, 5);
+	return n-1;
+}
+
+}
+
+int save_data(int fd){
+	char buffer[512];
+	int stop2 = 0, size, fd1;
+	while(!stop2)
+	{
+	size = llread(fd, buffer);
+	if(size <= 0) continue;
+	if(id_trama == 0)
+		id_trama=1;
+	else if (id_trama == 1)
+		id_trama = 0;
+	if(buffer[0] == 0x02){
+		fd1=analyze_start(buffer, size);
+	} else if(buffer[0]==0x01)
+	{
+		analyze_data(buffer, size, fd1);
+	}
+	else if(buffer[0]==0x03)
+	{
+		close(fd1);
+		stop2=1;}
+	}
 	return 0;
 }
 
+int analyze_start(char * buffer, int size) {
+	int l1, l2, i=0;
+	if(buffer[1] == 0x00)
+	{
+		l1 = (int) buffer[2]; //l1 = tamanho do tamanho do ficheiro
+		if(buffer[2+l1]==0x01)
+		{
+			l2 = (int) buffer[3+l1]; //l2 = tamanho do titulo
+		}
+	}
+	char nome[l2];
+	while(i < l2)
+	{
+		nome[i]=buffer[3+l1+i];
+		i++;
+	}
+
+	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
+	return fd;
 }
 
+int analyze_data(char * buffer, int size, int fd){
+	int l1=(int) buffer[2];
+	int l2=(int) buffer[3];
+	int k = l1*256+l2; 
+	char toWrite[k];
+	int i=0;	
+	while(i < k)
+	{
+		toWrite[i] = buffer[i+4];
+	}
+	write(fd, toWrite, k);
+	return 0;
+}
+
+int llclose(int fd){
+
+char DISC[5], buf;
+DISC[0]  = 0x7E;
+int i=0, res;
+int state = 0; //fora
+	STOP = FALSE;
+
+   while(!STOP)
+   {
+     res = read(fd, &buf,1);
+     
+     if(res!=0)
+     {
+	switch(state)
+	{
+	case 0:
+		if(buf == 0x7E) state++;
+		break;
+	case 1:
+		if(buf != 0x7E) {state++; i++; DISC[i] = buf;}
+		break;
+	case 2:
+		if(buf != 0x7E && i >= 4) STOP = TRUE;
+		else if(buf != 0x7E){ i++; DISC[i] = buf;}
+		else{ i++; DISC[i] = buf; STOP = TRUE;}
+		break;
+	}
+     }
+  }
+
+if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
+	llclose(fd);
+   res = write(fd, DISC, 5);
+
+char UA[5];
+
+   while(!STOP)
+   {
+     res = read(fd, &buf,1);
+     
+     if(res!=0)
+     {
+	switch(state)
+	{
+	case 0:
+		if(buf == 0x7E) state++;
+		break;
+	case 1:
+		if(buf != 0x7E) {state++; i++; UA[i] = buf;}
+		break;
+	case 2:
+		if(buf != 0x7E && i >= 4) STOP = TRUE;
+		else if(buf != 0x7E){ i++; UA[i] = buf;}
+		else{ i++; UA[i] = buf; STOP = TRUE;}
+		break;
+	}
+     }
+  }
+ return 0;
+}
