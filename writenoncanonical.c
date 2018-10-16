@@ -7,25 +7,32 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "alarme.c"
 #include <signal.h>
+#include <math.h>
+#include "alarme.c"
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
 #define MAX 3
+#define DATA 0x01
 #define FLAG 0x7E
 #define RR0 0x05
 #define RR1 0x85
 #define REJ0 0x01
 #define REJ1 0x81
+#define START 0x02
+#define END 0x03
+#define FILE_LENGTH 0x00
+#define FILE_NAME 0x01
 int received=0;
 int llopen(int fd);
 
 volatile int STOP=FALSE;
 void atende();
 char set[5];
+char trama=0x00;
 
 int main(int argc, char** argv)
 {
@@ -91,20 +98,70 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-char test[4];
-  test[0]=0x01;
-  test[1]=0x10;
-  test[2]=0x11;
-  test[3]=0x7E;
+char buffer[4];
+  buffer[0]=0x01;
+  buffer[1]=0x10;
+  buffer[2]=0x11;
+  buffer[3]=0x7E;
   printf("llopen\n");
 	 llopen(fd);
-   llwrite(fd,test,0x00,sizeof(test));
+    create_start(2, "test.txt",fd);
+   //llwrite(fd,buffer,sizeof(buffer));
 
     close(fd);
 
   return 0;
 }
+int create_start(int file_length,char *fileName,int fd){
+  char pack_start[256];
+  pack_start[0]=START;
+  int i = 0;
+  char v1[256];
+  do {
+        v1[0]=(int)(file_length/pow(256.0,(double)i)) % 256;
+        i++;
+  }while(v1[i]!=0);
 
+  pack_start[1]= FILE_LENGTH;
+  pack_start[2]=i;
+
+  int j;
+  for (j=3;j<i;j++){
+    pack_start[j]=v1[j-3];
+  }
+  i+=4;
+  if (fileName != NULL){
+    pack_start[i]=FILE_NAME;
+    int str_length=strlen(fileName);
+    i++;
+    pack_start[i]=str_length;
+    i++;
+    for (j = 0;j<str_length;j++){
+      pack_start[i]=fileName[j];
+      i++;
+    }
+  }
+  for (j=0;j<i;j++){
+    printf("0x%x\n",pack_start[j]);
+  }
+    int res = write(fd,pack_start,sizeof(pack_start));
+}
+int create_data(int fd){
+	char pack_data[260];
+	int i =0;
+	pack_data[i]=DATA;
+	i++;
+	pack_data[i]=260;
+	i++;
+	pack_data[i]=1;
+	i++;
+	pack_data[i]=4;
+	FILE * open_file = fopen("test.txt","r");
+	//char 
+	//char *p=fgets()
+
+
+}
 int llopen(int fd){
 	int res;
 	int i=0;
@@ -146,8 +203,8 @@ int llopen(int fd){
 }
 }
 
-int llwrite(int fd, char* set,int trama,int size){
-	
+int llwrite(int fd, char* set,int size){
+
 
 	char buf1[255];
   char buf2[255];
@@ -180,7 +237,7 @@ flag=1;
         }
         j++;
 			bcc2=bcc2^buf1[i];
-			
+
 	}
   buf2[j]=bcc2;
   buf3[0]=FLAG;
@@ -190,9 +247,9 @@ flag=1;
   i=4;
 if (trama ==0x00){
 		confirmation=RR1;
-	
+
 }
-else 
+else
 	confirmation=RR0;
   while(i<j+4){
 
@@ -239,4 +296,3 @@ else
 
 
 }
-
