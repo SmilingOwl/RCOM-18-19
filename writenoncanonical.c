@@ -28,6 +28,10 @@
 #define FILE_NAME 0x01
 int received=0;
 int llopen(int fd);
+int create_start(int file_length,char *fileName,int fd);
+int create_data(int fd);
+int llwrite(int fd, char* set,int size);
+
 
 volatile int STOP=FALSE;
 void atende();
@@ -104,15 +108,24 @@ char buffer[4];
   buffer[2]=0x11;
   buffer[3]=0x7E;
   printf("llopen\n");
-	 llopen(fd);
+
+/*	int file = open ("test.txt",O_RDONLY);
+  int file_length = lseek(file,0, SEEK_END);
+  close(file);
+  lseek(file,0,SEEK_SET);
+*/
+   llopen(fd);
     create_start(2, "test.txt",fd);
    //llwrite(fd,buffer,sizeof(buffer));
-
-    close(fd);
+    printf("before create_data\n");
+    create_data(fd);
+    create_end(2,"test.txt",fd);
+    //close(fd);
 
   return 0;
 }
 int create_start(int file_length,char *fileName,int fd){
+
   char pack_start[256];
   pack_start[0]=START;
   int i = 0;
@@ -141,27 +154,80 @@ int create_start(int file_length,char *fileName,int fd){
       i++;
     }
   }
-  for (j=0;j<i;j++){
-    printf("0x%x\n",pack_start[j]);
-  }
-    int res = write(fd,pack_start,sizeof(pack_start));
+      
+    int res = llwrite(fd,pack_start,i+1);
+    trama=0x01;
+
 }
+
+
 int create_data(int fd){
 	char pack_data[260];
 	int i =0;
-	pack_data[i]=DATA;
-	i++;
-	pack_data[i]=260;
-	i++;
-	pack_data[i]=1;
-	i++;
-	pack_data[i]=4;
-	FILE * open_file = fopen("test.txt","r");
-	//char 
-	//char *p=fgets()
+ 
+ 
+  char dest[260];
+	int n = 0;
+  char filename[20];
+  strcpy (filename,"test.txt");
+  int open_file = open(filename,O_RDONLY);
+  printf("AUX::%d\n",aux);
+  while(read(open_file, dest,260)>0){
+   printf("read\n");
+  pack_data[i]=DATA;
+  i++;
+  pack_data[i] = (int) n;
+  i++;
+  pack_data[i] = (int) 1;
+  i++;
+  pack_data[i] = (int) 4;
+  i++;  
+  pack_data[i] = dest;
+  i++;
+  int res = llwrite(fd,pack_data,i+1); 
+  n++;
+  i=0;
+  if ((n%2)==0)
+    trama=0x40;
+  else
+    trama =0x00;
+  aux =read(open_file, dest,260);
+  }
+}
+int create_end(int file_length,char *fileName,int fd){
+  char pack_end[256];
+  pack_end[0]=END;
+  int i = 0;
+  char v1[256];
+  do {
+        v1[0]=(int)(file_length/pow(256.0,(double)i)) % 256;
+        i++;
+  }while(v1[i]!=0);
 
+  pack_end[1]= FILE_LENGTH;
+  pack_end[2]=i;
+
+  int j;
+  for (j=3;j<i;j++){
+    pack_end[j]=v1[j-3];
+  }
+  i+=4;
+  if (fileName != NULL){
+    pack_end[i]=FILE_NAME;
+    int str_length=strlen(fileName);
+    i++;
+    pack_end[i]=str_length;
+    i++;
+    for (j = 0;j<str_length;j++){
+      pack_end[i]=fileName[j];
+      i++;
+    }
+  }
+
+    int res = llwrite(fd,pack_end,i+1);
 
 }
+
 int llopen(int fd){
 	int res;
 	int i=0;
@@ -177,7 +243,6 @@ int llopen(int fd){
 		while(!flag && !received){
 
 			res=read(fd,buf+i,1);
-      printf("llopen 0x%x\n",buf+i);
 
 		if (res!=0)
 			if(i<5 && res!=0) {
@@ -204,7 +269,7 @@ int llopen(int fd){
 }
 
 int llwrite(int fd, char* set,int size){
-
+    printf("SET: 0x%x\n", set);
 
 	char buf1[255];
   char buf2[255];
@@ -256,19 +321,19 @@ else
     buf3[i]=buf2[i-4];
     i++;
   }
+
   buf3[i]=FLAG;
+
+  res=write(fd,buf3,i+1);
   i=0;
-  	res=write(fd,buf3,sizeof(buf3));
-	printf("escrita: 0x%x\n",buf3[i]);
   char buf[255];
   alarm(3);
   conta_zero();
 	flag=0;
 	received=0;
-  while(!flag && !received){
-    res=read(fd,buf+i,1);
-	printf("buf: 0x%x\n",buf[i]);
 
+  while(!flag && !received){
+  res=read(fd,buf+i,1);
     if(res!=0) {
     switch(buf[i]){
       case 0x7E:
