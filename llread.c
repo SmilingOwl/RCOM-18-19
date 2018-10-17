@@ -76,12 +76,10 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-	if(llopen(fd)==-1){
-	perror("Wrong set received");
-	exit(-1);
-	}
+	while(llopen(fd)==-1){	}
 	
 	save_data(fd);
+	while(llclose(fd)==-1) {}
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
@@ -122,7 +120,7 @@ int state = 0; //fora
 
 //analise
 if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
-	llopen(fd);
+	return -1;
 //estrutura a enviar UA
 char UA[5];
 UA[0] = 0x7E;
@@ -134,7 +132,7 @@ UA[4] = 0x7E;
  return 0;
 }
 
-int llread(int fd, char* buffer){
+int llread(int fd, char* buf2){
     char buf;
     char trama[512];
     trama[0] = 0x7E;
@@ -194,13 +192,14 @@ if(trama[2]==0x40 && id_trama != 1){
 	printf("error\n");
 	return -1;
 }
+
+//Duvida em relaçao aos duplicados (ignorar ou enviar rr?) llopen duvida nos argumentos em relaçao a flag
 if(trama[2]==0x00 && id_trama != 0){
-	return llread(fd, buffer);
+	return llread(fd, buf2);
 }
 if(trama[2]==0x40 && id_trama != 1){
-	return llread(fd,buffer);
+	return llread(fd,buf2);
 }
-char buf2[512];
 int n =0;
 char bcc2;
 int j = 4;
@@ -227,18 +226,9 @@ while(j < i-1)
     j++;	
 }
 
-  a=0;
-  while(a <= n-1)
-    {
-  	printf("i=%d, buf2: 0x%x\n", a, buf2[a]);
-	a++;
-    }
-	buffer = buf2;
-
 if(trama[2]==0x00 && id_trama == 0){
 	printf("RR1\n");
 	message[2] = RR1;
-	printf("0x%x\n", message[2]);
 	message[3] == message[1]^message[2];
 	write(fd, message, 5);
 	return n-1;
@@ -264,6 +254,7 @@ int save_data(int fd){
 		id_trama=1;
 	else if (id_trama == 1)
 		id_trama = 0;
+	printf("buf: 0x%x\n", buffer[5]);
 	if(buffer[0] == 0x02){
 		fd1=analyze_start(buffer, size);
 	} else if(buffer[0]==0x01)
@@ -278,22 +269,37 @@ int save_data(int fd){
 	return 0;
 }
 
-int analyze_start(char * buffer, int size) {
+int analyze_start(char* buffer, int size) {
+	printf("entered analyse_start\n");
 	int l1, l2, i=0;
 	if(buffer[1] == 0x00)
 	{
-		l1 = (int) buffer[2]; //l1 = tamanho do tamanho do ficheiro
+		char str[2] = {0};
+		char chr = buffer[2];
+
+		str[0] = chr;
+		l1 = strtol(str, NULL, 16);
+		//l1 = buffer[2]; //l1 = tamanho do tamanho do ficheiro
 		if(buffer[2+l1]==0x01)
 		{
-			l2 = (int) buffer[3+l1]; //l2 = tamanho do titulo
+			
+			char str[2] = {0};
+			char chr = buffer[3+l1];
+printf("l2 = %x\n",buffer[3+l1]);
+
+			str[0] = chr;
+			l2 = strtol(str, NULL, 16);
 		}
 	}
+	printf("l2 = %d\n",l2);
 	char nome[l2];
 	while(i < l2)
 	{
 		nome[i]=buffer[3+l1+i];
+	printf("nome = %c\n", nome[i]);
 		i++;
 	}
+	printf("nome = %c\n", nome);
 
 	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
 	return fd;
@@ -345,7 +351,7 @@ int state = 0; //fora
   }
 
 if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
-	llclose(fd);
+	return -1;
    res = write(fd, DISC, 5);
 
 char UA[5];
@@ -372,5 +378,7 @@ char UA[5];
 	}
      }
   }
+if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
+	return -1;
  return 0;
 }
