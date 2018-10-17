@@ -30,8 +30,8 @@ int main(int argc, char** argv)
     if ( (argc < 2) || 
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
   	      (strcmp("/dev/ttyS1", argv[1])!=0) )) {
-      printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-      exit(1);
+      	printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+      	exit(1);
     }
 
 
@@ -67,19 +67,17 @@ int main(int argc, char** argv)
     leitura do(s) próximo(s) caracter(es)
   */
 
-
-
     tcflush(fd, TCIOFLUSH);
 
     if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
-      perror("tcsetattr");
-      exit(-1);
+      	perror("tcsetattr");
+      	exit(-1);
     }
 
-	while(llopen(fd)==-1){	}
+	if(llopen(fd)==-1) { return -1; }
 	
 	save_data(fd);
-	while(llclose(fd)==-1) {}
+	if(llclose(fd)==-1) { return -1; }
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
@@ -88,48 +86,48 @@ int main(int argc, char** argv)
 
 int llopen(int fd){
 
-char SET[5], buf;
-SET[0]  = 0x7E;
-int i=0, res;
-int state = 0; //fora
+	char SET[5], buf;
+	SET[0]  = 0x7E;
+	int i=0, res;
+	int state = 0; //fora
 
 
-   while(!STOP)
-   {
-     res = read(fd, &buf,1);
+   	while(!STOP)
+   	{
+    	res = read(fd, &buf,1);
      
-     if(res!=0)
-     {
-	switch(state)
-	{
-	case 0:
-		if(buf == 0x7E) state++;
-		break;
-	case 1:
-		if(buf != 0x7E) {state++; i++; SET[i] = buf;}
-		break;
-	case 2:
-		if(buf != 0x7E && i >= 4) STOP = TRUE;
-		else if(buf != 0x7E){ i++; SET[i] = buf;}
-		else{ i++; SET[i] = buf; STOP = TRUE;}
-		break;
-	}
-     }
-  }
+    	if(res!=0)
+     	{
+			switch(state)
+			{
+			case 0:
+				if(buf == 0x7E) state++;
+				break;
+			case 1:
+				if(buf != 0x7E) {state++; i++; SET[i] = buf;}
+				break;
+			case 2:
+				if(buf != 0x7E && i >= 4) STOP = TRUE;
+				else if(buf != 0x7E){ i++; SET[i] = buf;}
+				else{ i++; SET[i] = buf; STOP = TRUE;}
+				break;
+			}
+    	}
+  	}
 
 
-//analise
-if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
-	return -1;
-//estrutura a enviar UA
-char UA[5];
-UA[0] = 0x7E;
-UA[1] = 0x03;
-UA[2] = 0x07;
-UA[3] = 0x04;
-UA[4] = 0x7E;
-   res = write(fd, UA, sizeof(UA));
- return 0;
+	//analise
+	if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
+		return -1;
+	//estrutura a enviar UA
+	char UA[5];
+	UA[0] = 0x7E;
+	UA[1] = 0x03;
+	UA[2] = 0x07;
+	UA[3] = 0x04;
+	UA[4] = 0x7E;
+  	res = write(fd, UA, sizeof(UA));
+ 	return 0;
 }
 
 int llread(int fd, char* buf2){
@@ -140,106 +138,129 @@ int llread(int fd, char* buf2){
     int state = 0; //fora
     STOP = FALSE;
 
-   while(!STOP)
-   {
-     res = read(fd, &buf,1);
+   	while(!STOP)
+   	{
+     	res = read(fd, &buf,1);
      
-     if(res!=0)
-     {
-	switch(state)
-	{
-	case 0:
-		if(buf == 0x7E) state++;
-		break;
-	case 1:
-		if(buf != 0x7E) {state++; i++; trama[i] = buf;}
-		break;
-	case 2:
-		if(buf != 0x7E){ i++; trama[i] = buf;}
-		else{ i++; trama[i] = buf; STOP = TRUE;}
-		break;
-	}
-     }
-  }
+     	if(res!=0)
+     	{
+			switch(state)
+			{
+			case 0:
+				if(buf == 0x7E) state++;
+				break;
+			case 1:
+				if(buf != 0x7E) {state++; i++; trama[i] = buf;}
+				break;
+			case 2:
+				if(buf != 0x7E){ i++; trama[i] = buf;}
+				else{ i++; trama[i] = buf; STOP = TRUE;}
+				break;
+			}
+    	}
+  	}
 	int a = 0;
-  while(a <= i)
-  {
-  	printf("i=%d, trama: 0x%x\n", a, trama[a]);
-	a++;
-  }
+  	while(a <= i)
+  	{
+  		printf("i=%d, trama: 0x%x\n", a, trama[a]);
+		a++;
+ 	}
 
-char message[5];
-message[0] = 0x7E;
-message[1] = 0x03;
-message[4] = 0x7E;
+	char message[5];
+	message[0] = 0x7E;
+	message[1] = 0x03;
+	message[4] = 0x7E;
 
-if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40){
+	if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40){
 
-if(trama[2]==0x00 && id_trama != 0){
-	printf("REJ0\n");
-	message[2] = REJ0;
-	message[3] == message[1]^message[2];
-	write(fd, message, 5);
-	return -1;
-}
-if(trama[2]==0x40 && id_trama != 1){
-	printf("REJ1\n");
-	message[2] = REJ1;
-	message[3] == message[1]^message[2];
-	write(fd, message, 5);
-	return -1;
-}
-	printf("error\n");
-	return -1;
-}
+		if(trama[2]==0x00 && id_trama == 0){
+			printf("REJ0\n");
+			message[2] = REJ0;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x00 && id_trama != 0){
+			printf("RR1\n");
+			message[2] = RR1;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x40 && id_trama == 1){
+			printf("REJ1\n");
+			message[2] = REJ1;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x40 && id_trama != 1){
+			printf("RR0\n");
+			message[2] = RR0;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		printf("error\n");
+		return -1;
+	}
 
-//Duvida em relaçao aos duplicados (ignorar ou enviar rr?) llopen duvida nos argumentos em relaçao a flag
-if(trama[2]==0x00 && id_trama != 0){
-	return llread(fd, buf2);
-}
-if(trama[2]==0x40 && id_trama != 1){
-	return llread(fd,buf2);
-}
-int n =0;
-char bcc2;
-int j = 4;
-while(j < i-1)
-{
-    if(trama[j] == 0x7D && trama[j+1] == 0x5E)
-    {/*ciclo para apgar 0x5E e colocar 0x7D=0x7E (i--)*/
-	buf2[n] = 0x7E;
-	j++;
-    }
-    else if(trama[j] == 0x7D && trama[j+1] == 0x5D)
-    {/*ciclo para apgar 0x5D (i--)*/
-	buf2[n] = 0x7D;
-	j++;
-    }
-    else {
-	buf2[n] = trama[j];
-    }
-    if(n==0) 
-	bcc2=buf2[n];
-    else 
-	bcc2=bcc2^buf2[n];
-    n++;
-    j++;	
-}
+	if(trama[2]==0x00 && id_trama != 0){
+		//return llread(fd, buf2);
+		printf("RR1\n");
+		message[2] = RR1;
+		message[3] == message[1]^message[2];
+		write(fd, message, 5);
+		return -1;
+	}
+	if(trama[2]==0x40 && id_trama != 1){
+		//return llread(fd,buf2);
+		printf("RR0\n");
+		message[2] = RR0;
+		message[3] == message[1]^message[2];
+		write(fd, message, 5);
+		return -1;
+	}
+	int n =0;
+	char bcc2;
+	int j = 4;
+	while(j < i-1)
+	{
+    	if(trama[j] == 0x7D && trama[j+1] == 0x5E)	/*ciclo para apgar 0x5E e colocar 0x7D=0x7E */
+    	{
+			buf2[n] = 0x7E;
+			j++;
+    	}
+    	else if(trama[j] == 0x7D && trama[j+1] == 0x5D) /*ciclo para apgar 0x5D*/
+    	{
+			buf2[n] = 0x7D;
+			j++;
+    	}
+    	else {
+			buf2[n] = trama[j];
+    	}
+    	if(n==0) 
+			bcc2=buf2[n];
+    	else 
+			bcc2=bcc2^buf2[n];
+    	n++;
+    	j++;	
+	}
 
-if(trama[2]==0x00 && id_trama == 0){
-	printf("RR1\n");
-	message[2] = RR1;
-	message[3] == message[1]^message[2];
-	write(fd, message, 5);
-	return n-1;
-}
-if(trama[2]==0x40 && id_trama == 1){
-	printf("RR0\n");
-	message[2] = RR0;
-	message[3] == message[1]^message[2];
-	write(fd, message, 5);
-	return n-1;
-}
+	if(trama[2]==0x00 && id_trama == 0){
+		printf("RR1\n");
+		message[2] = RR1;
+		message[3] == message[1]^message[2];
+		write(fd, message, 5);
+		return n-1;
+	}
+	if(trama[2]==0x40 && id_trama == 1){
+		printf("RR0\n");
+		message[2] = RR0;
+		message[3] == message[1]^message[2];
+		write(fd, message, 5);
+		return n-1;
+	}
 
 }
 
@@ -248,23 +269,26 @@ int save_data(int fd){
 	int stop2 = 0, size, fd1;
 	while(!stop2)
 	{
-	size = llread(fd, buffer);
-	if(size <= 0) continue;
-	if(id_trama == 0)
-		id_trama=1;
-	else if (id_trama == 1)
-		id_trama = 0;
-	printf("buf: 0x%x\n", buffer[5]);
-	if(buffer[0] == 0x02){
-		fd1=analyze_start(buffer, size);
-	} else if(buffer[0]==0x01)
-	{
-		analyze_data(buffer, size, fd1);
-	}
-	else if(buffer[0]==0x03)
-	{
-		close(fd1);
-		stop2=1;}
+		size = llread(fd, buffer);
+		if(size <= 0) continue;
+		if(id_trama == 0)
+			id_trama=1;
+		else if (id_trama == 1)
+			id_trama = 0;
+		if(buffer[0] == 0x02){
+			fd1=analyze_start(buffer, size);
+			printf("end of analyse start\n");
+		} else if(buffer[0]==0x01)
+		{
+			analyze_data(buffer, size, fd1);
+			printf("end of analyse data\n");
+		}
+		else if(buffer[0]==0x03)
+		{
+			close(fd1);
+			printf("file closed\n");
+			stop2=1;
+		}
 	}
 	return 0;
 }
@@ -278,107 +302,105 @@ int analyze_start(char* buffer, int size) {
 		char chr = buffer[2];
 
 		str[0] = chr;
-		l1 = strtol(str, NULL, 16);
-		//l1 = buffer[2]; //l1 = tamanho do tamanho do ficheiro
+		l1 = strtol(str, NULL, 16); //l1 = tamanho do tamanho do ficheiro
 		if(buffer[2+l1]==0x01)
 		{
-			
-			char str[2] = {0};
-			char chr = buffer[3+l1];
-printf("l2 = %x\n",buffer[3+l1]);
-
-			str[0] = chr;
-			l2 = strtol(str, NULL, 16);
+			l2 = (int) buffer[3+l1]; //l2 = tamanho do nome do ficheiro
+			printf("   l2 = %d\n", l2);
 		}
 	}
-	printf("l2 = %d\n",l2);
-	char nome[l2];
+	char nome[l2+1];
+	printf("   nome:\n");
 	while(i < l2)
 	{
 		nome[i]=buffer[3+l1+i];
-	printf("nome = %c\n", nome[i]);
+		printf("i = %d -> %c\n", i, nome[i]);
 		i++;
 	}
-	printf("nome = %c\n", nome);
+	nome[l2] = '\0';
+	printf("  nome = %s\n", nome);
 
 	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
+	printf("   fd: %d\n", fd);
 	return fd;
 }
 
 int analyze_data(char * buffer, int size, int fd){
+	printf("entered analyze_data\n");
 	int l1=(int) buffer[2];
 	int l2=(int) buffer[3];
+	printf("  l1 = %d ; l2 = %d\n", l1, l2);
 	int k = l1*256+l2; 
 	char toWrite[k];
 	int i=0;	
 	while(i < k)
 	{
 		toWrite[i] = buffer[i+4];
+		printf("  i=%d -> 0x%x\n", i, toWrite[i]);
 	}
 	write(fd, toWrite, k);
 	return 0;
 }
 
 int llclose(int fd){
-
-char DISC[5], buf;
-DISC[0]  = 0x7E;
-int i=0, res;
-int state = 0; //fora
+	char DISC[5], buf;
+	DISC[0]  = 0x7E;
+	int i=0, res;
+	int state = 0; 
 	STOP = FALSE;
 
    while(!STOP)
    {
-     res = read(fd, &buf,1);
+    	res = read(fd, &buf,1);
      
-     if(res!=0)
-     {
-	switch(state)
-	{
-	case 0:
-		if(buf == 0x7E) state++;
-		break;
-	case 1:
-		if(buf != 0x7E) {state++; i++; DISC[i] = buf;}
-		break;
-	case 2:
-		if(buf != 0x7E && i >= 4) STOP = TRUE;
-		else if(buf != 0x7E){ i++; DISC[i] = buf;}
-		else{ i++; DISC[i] = buf; STOP = TRUE;}
-		break;
-	}
-     }
-  }
+     	if(res!=0)
+     	{
+			switch(state)
+			{
+			case 0:
+				if(buf == 0x7E) state++;
+				break;
+			case 1:
+				if(buf != 0x7E) {state++; i++; DISC[i] = buf;}
+				break;
+			case 2:
+				if(buf != 0x7E && i >= 4) STOP = TRUE;
+				else if(buf != 0x7E){ i++; DISC[i] = buf;}
+				else{ i++; DISC[i] = buf; STOP = TRUE;}
+				break;
+			}
+     	}
+  	}
 
-if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
-	return -1;
-   res = write(fd, DISC, 5);
+	if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
+		return -1;
+   	res = write(fd, DISC, 5);
 
-char UA[5];
+	char UA[5];
 
-   while(!STOP)
-   {
-     res = read(fd, &buf,1);
+    while(!STOP)
+   	{
+     	res = read(fd, &buf,1);
      
-     if(res!=0)
-     {
-	switch(state)
-	{
-	case 0:
-		if(buf == 0x7E) state++;
-		break;
-	case 1:
-		if(buf != 0x7E) {state++; i++; UA[i] = buf;}
-		break;
-	case 2:
-		if(buf != 0x7E && i >= 4) STOP = TRUE;
-		else if(buf != 0x7E){ i++; UA[i] = buf;}
-		else{ i++; UA[i] = buf; STOP = TRUE;}
-		break;
-	}
-     }
-  }
-if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
-	return -1;
- return 0;
+     	if(res!=0)
+     	{
+			switch(state)
+			{
+			case 0:
+				if(buf == 0x7E) state++;
+				break;
+			case 1:
+				if(buf != 0x7E) {state++; i++; UA[i] = buf;}
+				break;
+			case 2:
+				if(buf != 0x7E && i >= 4) STOP = TRUE;
+				else if(buf != 0x7E){ i++; UA[i] = buf;}
+				else{ i++; UA[i] = buf; STOP = TRUE;}
+				break;
+			}
+    	}
+  	}
+	if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
+		return -1;
+	return 0;
 }
