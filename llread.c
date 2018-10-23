@@ -160,6 +160,7 @@ int llread(int fd, char* buf2){
 			}
     	}
   	}
+printf("N: %d\n", (int) trama[5]);
 	
 
 	char message[5];
@@ -197,21 +198,18 @@ int llread(int fd, char* buf2){
 			write(fd, message, 5);
 			return -1;
 		}
-		printf("error\n");
 		return -1;
 	}
 
 	if(trama[2]==0x00 && id_trama != 0){
-		//return llread(fd, buf2);
-		printf("RR1\n");
+		printf("RR1 duplicate\n");
 		message[2] = RR1;
 		message[3] == message[1]^message[2];
 		write(fd, message, 5);
 		return -1;
 	}
 	if(trama[2]==0x40 && id_trama != 1){
-		//return llread(fd,buf2);
-		printf("RR0\n");
+		printf("RR0 duplicate\n");
 		message[2] = RR0;
 		message[3] == message[1]^message[2];
 		write(fd, message, 5);
@@ -241,8 +239,26 @@ int llread(int fd, char* buf2){
 			bcc2=bcc2^buf2[n];
     	n++;
     	j++;	
+	}	
+	printf("bcc2: 0x%x\n",bcc2);
+	printf("buf2: 0x%x\n",trama[i-1]);
+	if(bcc2 != trama[i-1] && id_trama == 0)
+	{
+			printf("REJ0 entered\n");
+			message[2] = REJ0;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
 	}
-
+	else if(bcc2 != trama[i-1] && id_trama == 1)
+	{
+			printf("REJ1 entered\n");
+			message[2] = REJ1;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+	}
+	printf("trama[2]: 0x%x\n", trama[2]);
 	if(trama[2]==0x00 && id_trama == 0){
 		printf("RR1\n");
 		message[2] = RR1;
@@ -282,11 +298,12 @@ int save_data(int fd){
 		}
 		else if(buffer[0]==0x03)
 		{
+		
 			close(fd1);
-			
 			stop2=1;
 		}
 	}
+	
 	return 0;
 }
 
@@ -344,9 +361,10 @@ int llclose(int fd){
    while(!STOP)
    {
     	res = read(fd, &buf,1);
-     
+     	
      	if(res!=0)
      	{
+
 			switch(state)
 			{
 			case 0:
@@ -364,9 +382,11 @@ int llclose(int fd){
      	}
   	}
 
+
 	if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
 		return -1;
    	res = write(fd, DISC, 5);
+
 
 	char UA[5];
 
@@ -392,6 +412,7 @@ int llclose(int fd){
 			}
     	}
   	}
+
 	if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
 		return -1;
 	return 0;
