@@ -131,6 +131,7 @@ int llopen(int fd){
 }
 
 int llread(int fd, char* buf2){
+	
     char buf;
     char trama[512];
     trama[0] = 0x7E;
@@ -141,7 +142,7 @@ int llread(int fd, char* buf2){
    	while(!STOP)
    	{
      	res = read(fd, &buf,1);
-     
+
      	if(res!=0)
      	{
 			switch(state)
@@ -159,12 +160,7 @@ int llread(int fd, char* buf2){
 			}
     	}
   	}
-	int a = 0;
-  	while(a <= i)
-  	{
-  		printf("i=%d, trama: 0x%x\n", a, trama[a]);
-		a++;
- 	}
+	
 
 	char message[5];
 	message[0] = 0x7E;
@@ -270,6 +266,7 @@ int save_data(int fd){
 	while(!stop2)
 	{
 		size = llread(fd, buffer);
+	
 		if(size <= 0) continue;
 		if(id_trama == 0)
 			id_trama=1;
@@ -277,16 +274,16 @@ int save_data(int fd){
 			id_trama = 0;
 		if(buffer[0] == 0x02){
 			fd1=analyze_start(buffer, size);
-			printf("end of analyse start\n");
+			
 		} else if(buffer[0]==0x01)
 		{
+			
 			analyze_data(buffer, size, fd1);
-			printf("end of analyse data\n");
 		}
 		else if(buffer[0]==0x03)
 		{
 			close(fd1);
-			printf("file closed\n");
+			
 			stop2=1;
 		}
 	}
@@ -294,49 +291,44 @@ int save_data(int fd){
 }
 
 int analyze_start(char* buffer, int size) {
-	printf("entered analyse_start\n");
-	int l1, l2, i=0;
+	int l1, l2, i=1;
 	if(buffer[1] == 0x00)
 	{
-		char str[2] = {0};
-		char chr = buffer[2];
-
-		str[0] = chr;
-		l1 = strtol(str, NULL, 16); //l1 = tamanho do tamanho do ficheiro
-		if(buffer[2+l1]==0x01)
+		l1 =  (int) buffer[2];		
+	
+		if(buffer[3+l1]==0x01)
 		{
-			l2 = (int) buffer[3+l1]; //l2 = tamanho do nome do ficheiro
-			printf("   l2 = %d\n", l2);
+			l2 = (int) buffer[4+l1]; //l2 = tamanho do nome do ficheiro
+
 		}
 	}
 	char nome[l2+1];
-	printf("   nome:\n");
-	while(i < l2)
+	while(i <= l2)
 	{
-		nome[i]=buffer[3+l1+i];
-		printf("i = %d -> %c\n", i, nome[i]);
+		nome[i-1]=buffer[4+l1+i];
 		i++;
 	}
 	nome[l2] = '\0';
-	printf("  nome = %s\n", nome);
+
 
 	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
-	printf("   fd: %d\n", fd);
 	return fd;
 }
 
 int analyze_data(char * buffer, int size, int fd){
-	printf("entered analyze_data\n");
+
 	int l1=(int) buffer[2];
 	int l2=(int) buffer[3];
-	printf("  l1 = %d ; l2 = %d\n", l1, l2);
+
 	int k = l1*256+l2; 
 	char toWrite[k];
-	int i=0;	
+	int i=0;
+
 	while(i < k)
 	{
 		toWrite[i] = buffer[i+4];
-		printf("  i=%d -> 0x%x\n", i, toWrite[i]);
+	
+	i++;
 	}
 	write(fd, toWrite, k);
 	return 0;
