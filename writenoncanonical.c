@@ -15,7 +15,7 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-#define MAX 4
+#define MAX 3
 #define DATA 0x01
 #define FLAG 0x7E
 #define RR0 0x05
@@ -171,7 +171,7 @@ int create_start(int file_length,char *fileName,int fd){
     trama=0x40;
 
 	while(i>0){
-	printf("pack_start: 0x%x \n", pack_start[i]);
+	//printf("pack_start: 0x%x \n", pack_start[i]);
 	i--;
 
 	}
@@ -304,11 +304,11 @@ int llopen(int fd){
 
 int llwrite(int fd, char* set1,int size){
 
-	char buf1[512];
-  char buf2[512];
-  char buf3[512];
-	char bcc2;
-char confirmation;
+	unsigned char buf1[512];
+  unsigned char buf2[512];
+  unsigned char buf3[512];
+	unsigned char bcc2;
+  unsigned char confirmation;
   int res=1;
 	int i,j;
   i=0;
@@ -335,11 +335,14 @@ flag=1;
           buf2[j]=buf1[i];
         }
         j++;
+        if (i==0){
+          bcc2=buf1[i];
+        }else
 			bcc2=bcc2^buf1[i];
 
 
 	}
-printf("bcc2: %x\n", bcc2);
+  int aux2=i;
   buf2[j]=bcc2;
   buf3[0]=FLAG;
   buf3[1]=0x03;
@@ -352,28 +355,27 @@ if (trama ==0x00){
 }
 else
 	confirmation=RR0;
-  while(i<j+4){
+
+
+  while(i<=j+4){
 
     buf3[i]=buf2[i-4];
     i++;
   }
-
   buf3[i]=FLAG;
 
   conta_zero();
   received=0;
   int aux = i+1;
-  while(conta < MAX && !received){
+  while(conta <= MAX && !received){
 
   desativa_alarme();
-  //printf("conta %d\n",conta );
   //sleep(0.7);
   res=write(fd,buf3,aux);
-//    printf("buf3 %x\n", buf3[2]);
   printf("numero %d\n", res);
 
   i=0;
-  char buf[255];
+  unsigned char buf[512];
   alarm(3);
 	flag=0;
 //  printf("flag %d\n",flag );
@@ -394,8 +396,15 @@ else
         i++;
 
 }
+
+
   //printf("conta3 %d\n",conta );
     if (i==5){
+       printf("buf[2]== REJ0: %d\n",buf[2]== REJ0);
+       printf("buf[2]== REJ1: %d\n",buf[2]== REJ1);
+       printf("buf2 0x%x\n", buf[2]);
+       printf("trama 0x%x\n", trama);
+
     if (buf[2] == confirmation && buf[3]==buf[1]^buf[2]) {
       received=1;
       //stop=1;
@@ -403,12 +412,14 @@ else
       desativa_alarme();
 
       }
+
+
       else if(buf[2]== REJ0 && trama == 0x00){
        printf("Restransmiting - received REJ0\n");
-       return llwrite(fd,set1,i+1);
+       return llwrite(fd,set1,size);
       }else if(buf[2]== REJ1 && trama == 0x40){
        printf("Restransmiting - received REJ1\n");
-      return llwrite(fd,set1,i+1);
+      return llwrite(fd,set1,size);
       }
   }
 }
