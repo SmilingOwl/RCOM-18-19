@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 {
     int fd,c, res, i=0;
     struct termios oldtio,newtio;
-    char buf[255];
+    unsigned char buf[255];
 
     if ( (argc < 2) || 
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) && 
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
 
 int llopen(int fd){
 
-	char SET[5], buf;
+	unsigned char SET[5], buf;
 	SET[0]  = 0x7E;
 	int i=0, res;
 	int state = 0; //fora
@@ -120,7 +120,7 @@ int llopen(int fd){
 	if(SET[3]!= SET[1]^SET[2] && SET[2]!=0x03)
 		return -1;
 	//estrutura a enviar UA
-	char UA[5];
+	unsigned char UA[5];
 	UA[0] = 0x7E;
 	UA[1] = 0x03;
 	UA[2] = 0x07;
@@ -132,8 +132,8 @@ int llopen(int fd){
 
 int llread(int fd, char* buf2){
 	
-    char buf;
-    char trama[512];
+    unsigned char buf;
+    unsigned char trama[512];
     trama[0] = 0x7E;
     int i=0, res;
     int state = 0; //fora
@@ -163,7 +163,7 @@ int llread(int fd, char* buf2){
 printf("N: %d\n", (int) trama[5]);
 	
 
-	char message[5];
+	unsigned char message[5];
 	message[0] = 0x7E;
 	message[1] = 0x03;
 	message[4] = 0x7E;
@@ -216,7 +216,7 @@ printf("N: %d\n", (int) trama[5]);
 		return -1;
 	}
 	int n =0;
-	char bcc2;
+	unsigned char bcc2;
 	int j = 4;
 	while(j < i-1)
 	{
@@ -240,9 +240,8 @@ printf("N: %d\n", (int) trama[5]);
     	n++;
     	j++;	
 	}	
-	printf("bcc2: 0x%x\n",bcc2);
-	printf("buf2: 0x%x\n",trama[i-1]);
-	if(bcc2 != trama[i-1] && id_trama == 0)
+	
+	if(bcc2 != trama[i-1] &&  id_trama == 0)
 	{
 			printf("REJ0 entered\n");
 			message[2] = REJ0;
@@ -253,12 +252,13 @@ printf("N: %d\n", (int) trama[5]);
 	else if(bcc2 != trama[i-1] && id_trama == 1)
 	{
 			printf("REJ1 entered\n");
-			message[2] = REJ1;
+			message[2] = 0x81;
 			message[3] == message[1]^message[2];
 			write(fd, message, 5);
 			return -1;
 	}
-	printf("trama[2]: 0x%x\n", trama[2]);
+	
+
 	if(trama[2]==0x00 && id_trama == 0){
 		printf("RR1\n");
 		message[2] = RR1;
@@ -277,28 +277,28 @@ printf("N: %d\n", (int) trama[5]);
 }
 
 int save_data(int fd){
-	char buffer[512];
+	unsigned char buffer[512];
 	int stop2 = 0, size, fd1;
 	while(!stop2)
 	{
 		size = llread(fd, buffer);
 	
 		if(size <= 0) continue;
+
 		if(id_trama == 0)
 			id_trama=1;
+
 		else if (id_trama == 1)
 			id_trama = 0;
-		if(buffer[0] == 0x02){
+
+		if(buffer[0] == 0x02)
 			fd1=analyze_start(buffer, size);
 			
-		} else if(buffer[0]==0x01)
-		{
-			
+		else if(buffer[0]==0x01)
 			analyze_data(buffer, size, fd1);
-		}
+		
 		else if(buffer[0]==0x03)
 		{
-		
 			close(fd1);
 			stop2=1;
 		}
@@ -319,13 +319,14 @@ int analyze_start(char* buffer, int size) {
 
 		}
 	}
-	char nome[l2+1];
+	unsigned char nome[l2+1];
 	while(i <= l2)
 	{
 		nome[i-1]=buffer[4+l1+i];
 		i++;
 	}
 	nome[l2] = '\0';
+
 
 
 	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
@@ -338,7 +339,7 @@ int analyze_data(char * buffer, int size, int fd){
 	int l2=(int) buffer[3];
 
 	int k = l1*256+l2; 
-	char toWrite[k];
+	unsigned char toWrite[k];
 	int i=0;
 
 	while(i < k)
@@ -388,7 +389,7 @@ int llclose(int fd){
    	res = write(fd, DISC, 5);
 
 
-	char UA[5];
+	unsigned char UA[5];
 
     while(!STOP)
    	{
