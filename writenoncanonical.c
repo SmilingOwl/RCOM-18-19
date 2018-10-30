@@ -41,6 +41,8 @@ char set[5];
 char trama=0x00;
 char file[200];
 int n = 1;
+int k  = 260;
+
 int main(int argc, char** argv)
 {
 
@@ -105,17 +107,14 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-char buffer[4];
-  buffer[0]=0x01;
-  buffer[1]=0x10;
-  buffer[2]=0x11;
-  buffer[3]=0x7E;
 
 
   llopen(fd);
 
-	printf("Please enter the name of the file: ");
-	scanf("%s",file);
+	/*printf("Please enter the name of the file: ");
+	scanf("%s",file);*/
+
+	strcpy(file,"pinguim.gif");
 
 	struct stat st;
 	int file_size;
@@ -123,7 +122,7 @@ char buffer[4];
 	file_size = st.st_size;
 
     create_start(file_size, file,fd);
-	  create_data(fd);
+	create_data(fd);
     create_end(file_size,file,fd);
     llclose(fd);
     close(fd);
@@ -137,18 +136,16 @@ int create_start(int file_length,char *fileName,int fd){
   int i = 0;
   unsigned char v1[256];
   do {
-        v1[0]=(char)(file_length/pow(256.0,(double)i)) % 256;
-        i++;
+    v1[0]=(char)(file_length/pow(256.0,(double)i)) % 256;
+    i++;
   }while(v1[i]!=0);
 
   pack_start[1]= FILE_LENGTH; //t1
   pack_start[2]=i; //l1
-  //printf("l1: %d \n",i);
 
   int j;
   for (j=3;j<i+3;j++){
     pack_start[j]=v1[j-3];
-	//printf("v[i] = 0x%x \n", pack_start[j]);
   }
   i+=3;
   if (fileName != NULL){
@@ -170,31 +167,24 @@ int create_start(int file_length,char *fileName,int fd){
     int res = llwrite(fd,pack_start,i+1);
     trama=0x40;
 
-	while(i>0){
-	//printf("pack_start: 0x%x \n", pack_start[i]);
-	i--;
 
-	}
 }
 
 
 int create_data(int fd){
-	char pack_data[260];
-	int i =0;
-
-
+  char pack_data[260];
+  int i =0;
   char dest[260];
   char filename[20];
-  strcpy (filename,file);
+  
+  strcpy(filename,file);
   int open_file = open(filename,O_RDONLY);
   int res;
 
 
- while((res=read(open_file, dest,260))>0){
+ while((res=read(open_file, dest,k))>0){
 
-   //printf("read\n");
   pack_data[i]=DATA;
-//  printf("buf1: %x\n",pack_data[0]);
   i++;
   pack_data[i] = (int) n;
   i++;
@@ -226,14 +216,16 @@ int create_data(int fd){
 
 }
 int create_end(int file_length,char *fileName,int fd){
-  char pack_end[256];
+  unsigned char pack_end[256];
   pack_end[0]=END;
   int i = 0;
-  char v1[256];
+  unsigned char v1[256];
+  printf("entered create end!\n");
   do {
         v1[0]=(int)(file_length/pow(256.0,(double)i)) % 256;
         i++;
   }while(v1[i]!=0);
+  printf("exited while in create end!\n");
 
   pack_end[1]= FILE_LENGTH;
   pack_end[2]=i;
@@ -242,6 +234,7 @@ int create_end(int file_length,char *fileName,int fd){
   for (j=3;j<i;j++){
     pack_end[j]=v1[j-3];
   }
+  printf("exited for in create end!\n");
   i+=4;
   if (fileName != NULL){
     pack_end[i]=FILE_NAME;
@@ -253,9 +246,11 @@ int create_end(int file_length,char *fileName,int fd){
       pack_end[i]=fileName[j];
       i++;
     }
+	printf("exited last for in create end!\n");
   }
 
     int res = llwrite(fd,pack_end,i+1);
+	printf("end of create end!\n");
 
 }
 
@@ -304,17 +299,17 @@ int llopen(int fd){
 
 int llwrite(int fd, char* set1,int size){
 
-	unsigned char buf1[512];
+  unsigned char buf1[512];
   unsigned char buf2[512];
   unsigned char buf3[512];
-	unsigned char bcc2;
+  unsigned char bcc2;
   unsigned char confirmation;
   int res=1;
 	int i,j;
   i=0;
   j=0;
 flag=1;
-
+	printf("entered llwrite\n");
  	for(; i<size;i++){
 		buf1[i]=set1[i];
 
@@ -342,6 +337,7 @@ flag=1;
 
 
 	}
+printf("exited for in llwrite\n");
   int aux2=i;
   buf2[j]=bcc2;
   buf3[0]=FLAG;
@@ -356,31 +352,32 @@ if (trama ==0x00){
 else
 	confirmation=RR0;
 
+printf("before while in llwrite\n");
 
   while(i<=j+4){
 
     buf3[i]=buf2[i-4];
     i++;
   }
+
+printf("after while  in llwrite\n");
   buf3[i]=FLAG;
 
   conta_zero();
   received=0;
   int aux = i+1;
+printf("before while in llwrite\n");
   while(conta <= MAX && !received){
 
   desativa_alarme();
-  //sleep(0.7);
+  
   res=write(fd,buf3,aux);
   printf("numero %d\n", res);
 
   i=0;
   unsigned char buf[512];
   alarm(3);
-	flag=0;
-//  printf("flag %d\n",flag );
-//  printf("received %d\n",received );
-//  printf("conta2 %d\n",conta );
+  flag=0;
   while(!flag && !received){
   res=read(fd,buf+i,1);
 
@@ -397,13 +394,8 @@ else
 
 }
 
-
-  //printf("conta3 %d\n",conta );
     if (i==5){
-       printf("buf[2]== REJ0: %d\n",buf[2]== REJ0);
-       printf("buf[2]== REJ1: %d\n",buf[2]== REJ1);
-       printf("buf2 0x%x\n", buf[2]);
-       printf("trama 0x%x\n", trama);
+      
 
     if (buf[2] == confirmation && buf[3]==buf[1]^buf[2]) {
       received=1;
@@ -425,6 +417,7 @@ else
 }
 
 }
+printf("after while  in llwrite\n");
 
 }
 printf("received final %d\n", received);
@@ -441,11 +434,14 @@ int llclose(int fd){
 	int i=0;
 	char buf[5];
 	conta_zero();
-  set[2]=DISC;
-  received = 0;
+  	set[2]=DISC;
+	set[3] = set[1] ^ set[2];
+  	received = 0;
+
+	printf("entered llclose!\n");
 	while(conta<MAX && !received){
 		desativa_alarme();
-
+	
 		res=write(fd,set,sizeof(set));
 
 
@@ -454,7 +450,6 @@ int llclose(int fd){
 		while(!flag && !received){
 
 			res=read(fd,buf+i,1);
-			//printf("res: %d \n", res);
 
 		if (res!=0)
 			if(i<5 && res!=0) {
@@ -473,6 +468,7 @@ int llclose(int fd){
 			if (buf[2]==DISC && buf[3]==buf[1]^buf[2]) {
 				received=1;
         set[2]=0x07;
+		set[3] = set[1] ^ set[2];
         res=write(fd,set,sizeof(set));
 				desativa_alarme();
 
