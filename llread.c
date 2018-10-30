@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -75,9 +76,13 @@ int main(int argc, char** argv)
     }
 
 	if(llopen(fd)==-1) { return -1; }
+	struct timespec start_t, end_t;
+	clock_gettime(CLOCK_REALTIME, &start_t);
 	
 	save_data(fd);
 	if(llclose(fd)==-1) { return -1; }
+	clock_gettime(CLOCK_REALTIME, &end_t);
+	printf("time: %d\n", (double) (end_t.tv_sec-start_t.tv_sec) + (end_t.tv_nsec-start_t.tv_nsec)/1E9);
 
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
@@ -141,6 +146,7 @@ int llread(int fd, char* buf2){
 
    	while(!STOP)
    	{
+	sleep(0.5);
      	res = read(fd, &buf,1);
 
      	if(res!=0)
@@ -161,6 +167,7 @@ int llread(int fd, char* buf2){
     	}
   	}
 printf("N: %d\n", (int) trama[5]);
+printf("trama4: 0x%x", trama[4]);
 	
 
 	unsigned char message[5];
@@ -168,36 +175,8 @@ printf("N: %d\n", (int) trama[5]);
 	message[1] = 0x03;
 	message[4] = 0x7E;
 
-	if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40){
-
-		if(trama[2]==0x00 && id_trama == 0){
-			printf("REJ0\n");
-			message[2] = REJ0;
-			message[3] == message[1]^message[2];
-			write(fd, message, 5);
-			return -1;
-		}
-		if(trama[2]==0x00 && id_trama != 0){
-			printf("RR1\n");
-			message[2] = RR1;
-			message[3] == message[1]^message[2];
-			write(fd, message, 5);
-			return -1;
-		}
-		if(trama[2]==0x40 && id_trama == 1){
-			printf("REJ1\n");
-			message[2] = REJ1;
-			message[3] == message[1]^message[2];
-			write(fd, message, 5);
-			return -1;
-		}
-		if(trama[2]==0x40 && id_trama != 1){
-			printf("RR0\n");
-			message[2] = RR0;
-			message[3] == message[1]^message[2];
-			write(fd, message, 5);
-			return -1;
-		}
+	unsigned char bcc1 = trama[1]^trama[2];
+	if((trama[3]!= bcc1) || (trama[2]!=0x00 && trama[2]!=0x40)){
 		return -1;
 	}
 
@@ -293,17 +272,15 @@ int save_data(int fd){
 
 		if(buffer[0] == 0x02)
 			fd1=analyze_start(buffer, size);
-			
 		else if(buffer[0]==0x01)
 			analyze_data(buffer, size, fd1);
-		
 		else if(buffer[0]==0x03)
 		{
+			printf("entered end package\n");
 			close(fd1);
 			stop2=1;
 		}
 	}
-	
 	return 0;
 }
 
@@ -353,11 +330,12 @@ int analyze_data(char * buffer, int size, int fd){
 }
 
 int llclose(int fd){
-	char DISC[5], buf;
-	DISC[0]  = 0x7E;
+	unsigned char DISC[5], buf;
+	DISC[0] = 0x7E;
 	int i=0, res;
 	int state = 0; 
 	STOP = FALSE;
+printf("entered llclose\n");
 
    while(!STOP)
    {
@@ -383,9 +361,10 @@ int llclose(int fd){
      	}
   	}
 
-
-	if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
+	unsigned char bcc1 = DISC[1]^DISC[2];
+	if(DISC[3]!= bcc1 || DISC[2]!=0x0B)
 		return -1;
+
    	res = write(fd, DISC, 5);
 
 
@@ -414,7 +393,5 @@ int llclose(int fd){
     	}
   	}
 
-	if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
-		return -1;
 	return 0;
 }
