@@ -1,5 +1,4 @@
 /*LLOPEN Emissor Processing*/
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -19,6 +18,7 @@
 #define REJ1 0x81
 
 int id_trama=0;
+void analyze_data(unsigned char * buffer, int size, int fd);
 
 volatile int STOP=FALSE;
 
@@ -75,16 +75,18 @@ int main(int argc, char** argv)
       	exit(-1);
     }
 
+
 	if(llopen(fd)==-1) { return -1; }
 	struct timespec start_t, end_t;
-	clock_gettime(CLOCK_REALTIME, &start_t);
-	
+clock_gettime(CLOCK_REALTIME, &start_t);
 	save_data(fd);
-	if(llclose(fd)==-1) { return -1; }
-	clock_gettime(CLOCK_REALTIME, &end_t);
-	printf("time: %d\n", (double) (end_t.tv_sec-start_t.tv_sec) + (end_t.tv_nsec-start_t.tv_nsec)/1E9);
 
-    tcsetattr(fd,TCSANOW,&oldtio);
+	clock_gettime(CLOCK_REALTIME, &end_t);
+	printf("time: %f\n", (double) (end_t.tv_sec-start_t.tv_sec + (end_t.tv_nsec-start_t.tv_nsec)/1E9));	
+	if(llclose(fd)==-1) { return -1; }
+
+tcsetattr(fd,TCSANOW,&oldtio);
+
     close(fd);
     return 0;
 }
@@ -135,7 +137,7 @@ int llopen(int fd){
  	return 0;
 }
 
-int llread(int fd, char* buf2){
+int llread(int fd, unsigned char* buf2){
 	
     unsigned char buf;
     unsigned char trama[512];
@@ -146,7 +148,6 @@ int llread(int fd, char* buf2){
 
    	while(!STOP)
    	{
-	sleep(0.5);
      	res = read(fd, &buf,1);
 
      	if(res!=0)
@@ -167,7 +168,6 @@ int llread(int fd, char* buf2){
     	}
   	}
 printf("N: %d\n", (int) trama[5]);
-printf("trama4: 0x%x", trama[4]);
 	
 
 	unsigned char message[5];
@@ -175,8 +175,36 @@ printf("trama4: 0x%x", trama[4]);
 	message[1] = 0x03;
 	message[4] = 0x7E;
 
-	unsigned char bcc1 = trama[1]^trama[2];
-	if((trama[3]!= bcc1) || (trama[2]!=0x00 && trama[2]!=0x40)){
+	if(trama[3]!= trama[1]^trama[2] && trama[2]!=0x00 && trama[2]!=0x40){
+
+		if(trama[2]==0x00 && id_trama == 0){
+			printf("REJ0\n");
+			message[2] = REJ0;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x00 && id_trama != 0){
+			printf("RR1\n");
+			message[2] = RR1;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x40 && id_trama == 1){
+			printf("REJ1\n");
+			message[2] = REJ1;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
+		if(trama[2]==0x40 && id_trama != 1){
+			printf("RR0\n");
+			message[2] = RR0;
+			message[3] == message[1]^message[2];
+			write(fd, message, 5);
+			return -1;
+		}
 		return -1;
 	}
 
@@ -219,6 +247,7 @@ printf("trama4: 0x%x", trama[4]);
     	n++;
     	j++;	
 	}	
+
 	
 	if(bcc2 != trama[i-1] &&  id_trama == 0)
 	{
@@ -272,19 +301,23 @@ int save_data(int fd){
 
 		if(buffer[0] == 0x02)
 			fd1=analyze_start(buffer, size);
+			
 		else if(buffer[0]==0x01)
+			
 			analyze_data(buffer, size, fd1);
+
+		
 		else if(buffer[0]==0x03)
 		{
-			printf("entered end package\n");
 			close(fd1);
 			stop2=1;
 		}
 	}
+	
 	return 0;
 }
 
-int analyze_start(char* buffer, int size) {
+int analyze_start(unsigned char* buffer, int size) {
 	int l1, l2, i=1;
 	if(buffer[1] == 0x00)
 	{
@@ -304,38 +337,33 @@ int analyze_start(char* buffer, int size) {
 	}
 	nome[l2] = '\0';
 
-
-
 	int fd= open(nome, O_CREAT | O_WRONLY |O_APPEND);
 	return fd;
 }
 
-int analyze_data(char * buffer, int size, int fd){
+void analyze_data(unsigned char * buffer, int size, int fd){
 
-	int l1=(int) buffer[2];
-	int l2=(int) buffer[3];
+	unsigned int l2=(unsigned int) buffer[2];
+	unsigned int l1=(unsigned int) buffer[3];
 
-	int k = l1*256+l2; 
+	int k = l2*256+l1; 
 	unsigned char toWrite[k];
 	int i=0;
 
 	while(i < k)
 	{
 		toWrite[i] = buffer[i+4];
-	
-	i++;
+		i++;
 	}
 	write(fd, toWrite, k);
-	return 0;
 }
 
 int llclose(int fd){
 	unsigned char DISC[5], buf;
-	DISC[0] = 0x7E;
+	DISC[0]  = 0x7E;
 	int i=0, res;
 	int state = 0; 
 	STOP = FALSE;
-printf("entered llclose\n");
 
    while(!STOP)
    {
@@ -361,10 +389,9 @@ printf("entered llclose\n");
      	}
   	}
 
-	unsigned char bcc1 = DISC[1]^DISC[2];
-	if(DISC[3]!= bcc1 || DISC[2]!=0x0B)
-		return -1;
 
+	if(DISC[3]!= DISC[1]^DISC[2] && DISC[2]!=0x0B)
+		return -1;
    	res = write(fd, DISC, 5);
 
 
@@ -393,5 +420,7 @@ printf("entered llclose\n");
     	}
   	}
 
+	if(UA[3]!= UA[1]^UA[2] && UA[2]!=0x0B)
+		return -1;
 	return 0;
 }
