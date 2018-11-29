@@ -16,10 +16,14 @@
 #define MAX_SIZE 256
 
 struct hostent *getip( char host[]);
+int parseURL(char url[], char *user, char *password, char *host, char *url_path);
+int sendCommand(int fd_socket, char *command);
 
 int main(int argc, char** argv){
 
-char user[MAX_SIZE]; 
+struct hostent *h;
+
+char user[MAX_SIZE];
 char password[MAX_SIZE];
 char host[MAX_SIZE];
 char url_path[MAX_SIZE];
@@ -31,69 +35,74 @@ printf("Password: %s\n",password);
 printf("Host: %s\n",host);
 printf("Url path: %s\n",url_path);
 
+  	int	sockfd;
+  	struct	sockaddr_in server_addr;
+  	char	buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";
+  	int	bytes;
 
-// 	int	sockfd;
-// 	struct	sockaddr_in server_addr;
-// 	char	buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";  
-// 	int	bytes;
-	
-// 	/*server address handling*/
-// 	bzero((char*)&server_addr,sizeof(server_addr));
-// 	server_addr.sin_family = AF_INET;
-// 	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);	/*32 bit Internet address network byte ordered*/
-// 	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
-    
-// 	/*open an TCP socket*/
-// 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
-//     		perror("socket()");
-//         	exit(0);
-//     	}
-// 	/*connect to the server*/
-//     	if(connect(sockfd, 
-// 	           (struct sockaddr *)&server_addr, 
-// 		   sizeof(server_addr)) < 0){
-//         	perror("connect()");
-// 		exit(0);
-// 	}
-    	
-// 	/*send a string to the server*/
-// 	bytes = write(sockfd, buf, strlen(buf));
-// 	printf("Bytes escritos %d\n", bytes);
+  	/*server address handling*/
+  	bzero((char*)&server_addr,sizeof(server_addr));
+  	server_addr.sin_family = AF_INET;
+  	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);	/*32 bit Internet address network byte ordered*/
+  	server_addr.sin_port = htons(SERVER_PORT);		/*server TCP port must be network byte ordered */
 
-// 	close(sockfd);
-// 	exit(0);
+  	/*open an TCP socket*/
+  	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
+      		perror("socket()");
+          	exit(0);
+      	}
+  	/*connect to the server*/
+      	if(connect(sockfd,
+  	           (struct sockaddr *)&server_addr,
+  		   sizeof(server_addr)) < 0){
+          	perror("connect()");
+  		exit(0);
+  	}
+
+  	/*send a string to the server*/
+  	bytes = write(sockfd, buf, strlen(buf));
+  	printf("Bytes escritos %d\n", bytes);
+
+
+		//h = getip(host);
+
+
+  	close(sockfd);
+  	exit(0);
  }
 
 
-//  struct hostent *getip( char host[]){
-//         struct hostent *h;
+   struct hostent *getip( char host[]){
+          struct hostent *h;
 
-//         if ((h=gethostbyname(host)) == NULL) {  
-//             herror("gethostbyname");
-//             exit(1);
-//         }
+         if ((h=gethostbyname(host)) == NULL) {
+             herror("gethostbyname");
+             exit(1);
+        }
 
-//         printf("Host name  : %s\n", h->h_name);
-//         printf("IP Address : %s\n",inet_ntoa(*((struct in_addr *)h->h_addr)));
+        printf("Host name  : %s\n", h->h_name);
+        printf("IP Address : %s\n",inet_ntoa(*((struct in_addr *)h->h_addr)));
 
-//         return h;
-//    }
+       return h;
+ }
 
-	// ftp://<user>:<password>@<host>/<url-path>. 
+	  //ftp:<user>:<password>@<host>/<url-path>.
 int parseURL(char url[], char *user, char *password, char *host, char *url_path){
 
 	int i=6, j=0;
-	
+
 	if(!(url[0]=='f' && url[1]=='t' && url[2]=='p' && url[3]==':' && url[4]=='/' && url[5]=='/')){
-		perror();
+		perror("ERROR: url");
 		return -1;
 	}
-	
+
 	while(url[i]!=':'){
 		user[j]=url[i];
 		i++;
 		j++;
 	}
+
+	user[j] = '\0';
 	i++;
 	j=0;
 	while(url[i]!='@'){
@@ -102,6 +111,7 @@ int parseURL(char url[], char *user, char *password, char *host, char *url_path)
 		j++;
 	}
 
+	password[j] = '\0';
 	i++;
 	j=0;
 	while(url[i]!='/'){
@@ -110,6 +120,7 @@ int parseURL(char url[], char *user, char *password, char *host, char *url_path)
 		j++;
 	}
 
+	host[j] = '\0';
 	i++;
 	j=0;
 	while(url[i]!='\0'){
@@ -117,5 +128,15 @@ int parseURL(char url[], char *user, char *password, char *host, char *url_path)
 		i++;
 		j++;
 	}
+
+	url_path[j] = '\0';
+
 	return 0;
+}
+
+int sendCommand(int fd_socket, char *command){
+
+	write(fd_socket, command, sizeof(command));
+
+
 }
